@@ -4,10 +4,11 @@
 /.cache
 /.qt
 /VisualizeInputing_autogen
+/build
 
 # 忽略文件
 CMakeCache.txt
 cmake_install.cmake
 compile_commands.json
-
+.DS_Store
 
