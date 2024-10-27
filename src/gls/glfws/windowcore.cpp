@@ -1,5 +1,6 @@
 #include "windowcore.h"
 #include <iostream>
+#include <mutex>
 #include <stdexcept>
 
 bool glwindow::_is_init{false};
@@ -77,6 +78,8 @@ glwindow::glwindow(const char *title) {
   if (!window) {
     throw std::runtime_error("窗口创建失败");
   }
+  // 启用gl实验性先进功能
+  glewExperimental = GL_TRUE;
 
   // 设置用户指针为当前实例
   glfwSetWindowUserPointer(window, this);
@@ -118,23 +121,16 @@ glwindow::~glwindow() {
 void glwindow::event_loop() {
   // 设置当前窗口为渲染线程opengl上下文(同时初始化opengl)
   glfwMakeContextCurrent(window);
-  // 启用gl实验性先进功能
-  glewExperimental = GL_TRUE;
   if (glewInit() != GLEW_OK) {
     throw std::runtime_error("glew初始化失败");
   } else {
     _is_init = true;
   }
-  std::unique_lock<std::mutex> lock(mtx);
   while (thread_flag) {
-    std::cout << "等待通知进入渲染循环" << std::endl;
-    // 等待通知
-    cv.wait(lock, [this] { return visible; });
-    std::cout << "进入渲染循环" << std::endl;
-    // 使其他线程能够访问到visible变量
-    lock.unlock();
+    std::unique_lock<std::mutex> lock(mtx);
+    cv.wait(lock, [this]() { return visible; });
     // 实际渲染循环
-    while (visible) {
+    while (visible && !glfwWindowShouldClose(window)) {
       // 背景颜色
       glClearColor(_background_color[0], _background_color[1],
                    _background_color[2], _background_color[3]);
@@ -145,14 +141,23 @@ void glwindow::event_loop() {
       // 进入下一事件循环
       glfwPollEvents();
     }
-    lock.lock();
+    set_visible(false);
+    thread_flag = false;
+    return;
   }
 }
 
 void glwindow::set_visible(bool is_visible) {
   {
-    std::lock_guard<std::mutex> lock(mtx);
     visible = is_visible;
+    if (visible) {
+      // 显示窗口
+      glfwShowWindow(window);
+    } else {
+      std::cout << "隐藏窗口" << std::endl;
+      // 隐藏窗口
+      glfwHideWindow(window);
+    }
   }
   cv.notify_all();
 }
@@ -186,14 +191,14 @@ void glwindow::key_event(GLFWwindow *window, int key, int keycode, int action,
   // 键盘输入事件
 }
 void glwindow::mouse_event(GLFWwindow *window, int button, int action,
-                           int mods){
-    // 鼠标按下事件
+                           int mods) {
+  // 鼠标按下事件
 };
-void glwindow::mouse_move_event(GLFWwindow *window, double x, double y){
-    // 鼠标移动事件
+void glwindow::mouse_move_event(GLFWwindow *window, double x, double y) {
+  // 鼠标移动事件
 };
-void glwindow::mouse_wheel_event(GLFWwindow *window, double dx, double dy){
-    // 鼠标滚轮事件
+void glwindow::mouse_wheel_event(GLFWwindow *window, double dx, double dy) {
+  // 鼠标滚轮事件
 };
 
 void glwindow::resize_event(GLFWwindow *window, int w, int h) {

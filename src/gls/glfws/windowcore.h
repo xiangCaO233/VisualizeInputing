@@ -27,7 +27,7 @@ class glwindow {
   int _max_framerate{60};
 
   // 背景颜色
-  float _background_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  float _background_color[4] = {0.23f, 0.23f, 0.23f, 1.0f};
 
   // 事件循环
   void event_loop();
