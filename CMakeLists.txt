@@ -9,16 +9,21 @@ find_package(glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
 find_library(
-	InputLsnr REQUIRED
-	NAMES InputLsnr-static
-	PATHS "${CMAKE_SOURCE_DIR}/../InputListener/build")
+  InputLsnr REQUIRED
+  NAMES InputLsnr-static
+  PATHS "${CMAKE_SOURCE_DIR}/../InputListener/build")
 
 include_directories(include)
 set(SOURCES src/main.cpp src/gls/shader.cpp src/gls/texture.cpp
             src/gls/glfws/windowcore.cpp)
+if(APPLE)
+  list(APPEND SOURCES src/gls/glfws/macos/mglwindow.cpp)
+endif()
+
+if(UNIX)
+  list(APPEND SOURCE src/gls/glfws/linux/lglwindow.cpp)
+endif()
 
 add_executable(visualizeinput ${SOURCES})
 
-target_link_libraries(visualizeinput glfw GLEW::GLEW OpenGL::GL 
-	${InputLsr}
-)
+target_link_libraries(visualizeinput glfw GLEW::GLEW OpenGL::GL ${InputLsr})

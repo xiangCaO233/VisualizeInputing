@@ -6,7 +6,30 @@
 #include <mutex>
 #include <thread>
 
-class glwindow {
+class glwindowcore {
+public:
+  glwindowcore(const char *title);
+  virtual ~glwindowcore();
+  // 设置msaa抗锯齿倍率
+  void set_msaa(int samples);
+  // 获取支持的最大msaa倍率
+  int get_max_msaa();
+  // 直接设置最大帧率
+  void set_max_framerate(int framerate);
+  // 设置垂直同步(将会无视最大帧率设置)
+  void enable_vsync();
+  void unable_vsync();
+  // 初始化着色器(默认路径./assets/shader/...~.glsl)
+  void initialize_shader(
+      const char *vshadersource = "./assets/shader/vertex.glsl",
+      const char *fshadersource = "./assets/shader/fragment.glsl");
+  // 直接访问着色器
+  inline shader *current_shader() { return _glshader; }
+
+  // 设置窗口可见性
+  virtual void set_visible(bool is_visible);
+
+protected:
   // 着色器
   shader *_glshader;
   // 是否已初始化
@@ -30,7 +53,7 @@ class glwindow {
   float _background_color[4] = {0.23f, 0.23f, 0.23f, 1.0f};
 
   // 事件循环
-  void event_loop();
+  virtual void event_loop() = 0;
 
   // 静态回调函数
   static void framebuffersizecallback(GLFWwindow *window, int width,
@@ -41,39 +64,13 @@ class glwindow {
                                   int mods);
   static void mousemovecallback(GLFWwindow *window, double x, double y);
   static void mousewheelcallback(GLFWwindow *window, double dx, double dy);
-
-public:
-  glwindow(const char *title);
-  ~glwindow();
-
-  void set_visible(bool is_visible);
-  // 设置msaa抗锯齿倍率
-  void set_msaa(int samples);
-  // 获取支持的最大msaa倍率
-  int get_max_msaa();
-
-  // 直接设置最大帧率
-  void set_max_framerate(int framerate);
-
-  // 设置垂直同步(将会无视最大帧率设置)
-  void enable_vsync();
-  void unable_vsync();
-
-  // 初始化着色器(默认路径./assets/shader/...~.glsl)
-  void initialize_shader(
-      const char *vshadersource = "./assets/shader/vertex.glsl",
-      const char *fshadersource = "./assets/shader/fragment.glsl");
-
-  // 直接访问着色器
-  inline shader *current_shader() { return _glshader; }
-
-protected:
-  void key_event(GLFWwindow *window, int key, int keycode, int action,
-                 int mods);
-  void mouse_event(GLFWwindow *window, int button, int action, int mods);
-  void mouse_move_event(GLFWwindow *window, double x, double y);
-  void mouse_wheel_event(GLFWwindow *window, double dx, double dy);
-  void resize_event(GLFWwindow *window, int w, int h);
+  virtual void key_event(GLFWwindow *window, int key, int keycode, int action,
+                         int mods);
+  virtual void mouse_event(GLFWwindow *window, int button, int action,
+                           int mods);
+  virtual void mouse_move_event(GLFWwindow *window, double x, double y);
+  virtual void mouse_wheel_event(GLFWwindow *window, double dx, double dy);
+  virtual void resize_event(GLFWwindow *window, int w, int h);
 };
 
 #endif // WINDOWCORE_H
