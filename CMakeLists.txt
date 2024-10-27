@@ -14,7 +14,8 @@ find_library(
   PATHS "${CMAKE_SOURCE_DIR}/../InputListener/build")
 
 include_directories(include)
-set(SOURCES src/main.cpp)
+set(SOURCES src/main.cpp src/gls/shader.cpp src/gls/texture.cpp
+            src/gls/glfws/windowcore.cpp)
 
 add_executable(visualizeinput ${SOURCES})
 
