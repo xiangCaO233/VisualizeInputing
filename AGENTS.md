@@ -23,7 +23,13 @@
 
 ## 2. 目录边界
 
-- **`src/app/`**: 当前应用层。`Application` 负责 GLFW 窗口、OpenGL 上下文、ImGui 生命周期和主循环。
+- **`src/app/`**: 应用组合和主循环。
+  - `Application` 只负责装配对象，不承载窗口、ImGui 或 UI 细节。
+  - `AppLoop` 只负责逐帧调度：事件轮询、ImGui frame、输入记录、UI 更新和 OpenGL 呈现。
+- **`src/platform/`**: 平台和原生窗口封装。`NativeWindow` 负责 GLFW 生命周期、窗口句柄、OpenGL 上下文、VSync 和 framebuffer 查询。
+- **`src/imgui/`**: Dear ImGui 上下文与 backend 生命周期。`ImGuiLayer` 负责 ImGui 创建、样式、GLFW/OpenGL3 backend 初始化和绘制提交。
+- **`src/input/`**: 输入状态和事件记录。当前 `InputState` 从 ImGui/GLFW 输入流记录窗口内键鼠事件。
+- **`src/ui/`**: 具体 ImGui 界面。`MainUi` 负责菜单、DockSpace、输入监视、可视化、设置和事件日志。
 - **`src/main.cpp`**: 只负责创建并运行 `vi::Application`，不要在这里堆业务逻辑。
 - **`include/`**: 项目内置头文件，目前包含 `stb_truetype.h`。
 - **`assets/`**: 运行时资源，新增或移动资源时必须同步检查代码中的相对路径。
@@ -52,6 +58,7 @@ cmake --build build
 - 业务 target 只链接包装 target，例如 `3rd_glfw`、`3rd_imgui`。
 - `OpenGL` 是系统图形 API，仍通过 `find_package(OpenGL REQUIRED)` 获取。
 - `InputListener` 当前不参与主程序链接；后续接入全局输入监听时再新增独立包装入口和应用层抽象。
+- 不再引入 GLEW。Dear ImGui OpenGL3 backend 自带 loader；本项目当前只使用 GLFW 暴露的基础 OpenGL API。
 
 ### 3.3 修改后的验证
 
@@ -93,7 +100,9 @@ cmake-format -i <absolute_file_path>
 - **头文件保护**: 新增头文件使用 `#pragma once`。
 - **Includes 顺序**: 对应头文件优先，其次项目头文件，然后第三方头文件，最后标准库头文件。
 - **日志与调试输出**: 避免留下临时 `std::cout`、`printf` 调试输出；当前项目没有统一日志封装时，必要输出应保持局部且可解释。
+- **Doxygen 注释**: 新增或修改的类、结构体、公共函数、重要私有函数和成员变量必须使用 Doxygen 风格注释。
 - **窗口与渲染循环**: 当前设计是主线程持有 GLFW/OpenGL/ImGui 生命周期，不要重新引入 detach 渲染线程或平台分支窗口类。
+- **职责边界**: 不要把原生窗口、ImGui backend、具体 UI 绘制和主循环重新堆回 `Application`。新增功能应优先放到对应目录或新增同级职责类。
 - **异常与资源**: 修改窗口、OpenGL 上下文、ImGui 初始化相关逻辑时，必须保证构造失败会清理已经创建的资源。
 
 ## 5. Git 与第三方源码

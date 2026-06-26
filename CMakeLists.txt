@@ -11,7 +11,14 @@ find_package(OpenGL REQUIRED)
 
 add_subdirectory("3rdpty")
 
-set(SOURCES src/main.cpp src/app/Application.cpp)
+set(SOURCES
+    src/main.cpp
+    src/app/Application.cpp
+    src/app/AppLoop.cpp
+    src/imgui/ImGuiLayer.cpp
+    src/input/InputState.cpp
+    src/platform/NativeWindow.cpp
+    src/ui/MainUi.cpp)
 
 add_executable(visualizeinput ${SOURCES})
 
