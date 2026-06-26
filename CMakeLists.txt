@@ -1,29 +1,21 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(visualizeinput)
+project(visualizeinput LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(glfw3 REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
-find_library(
-  InputLsnr REQUIRED
-  NAMES InputLsnr-static
-  PATHS "${CMAKE_SOURCE_DIR}/../InputListener/build")
 
-include_directories(include)
-set(SOURCES src/main.cpp src/gls/shader.cpp src/gls/texture.cpp
-            src/gls/glfws/windowcore.cpp)
-if(APPLE)
-  list(APPEND SOURCES src/gls/glfws/macos/mglwindow.cpp)
-endif()
+add_subdirectory("3rdpty")
 
-if(UNIX)
-  list(APPEND SOURCE src/gls/glfws/linux/lglwindow.cpp)
-endif()
+set(SOURCES src/main.cpp src/app/Application.cpp)
 
 add_executable(visualizeinput ${SOURCES})
 
-target_link_libraries(visualizeinput glfw GLEW::GLEW OpenGL::GL ${InputLsr})
+target_include_directories(visualizeinput
+                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+target_link_libraries(visualizeinput PRIVATE 3rd_glfw 3rd_imgui OpenGL::GL)

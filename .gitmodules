@@ -1,0 +1,12 @@
+[submodule "3rdpty/sources/InputListener"]
+	path = 3rdpty/sources/InputListener
+	url = https://github.com/xiangCaO233/InputListener.git
+	branch = main
+[submodule "3rdpty/sources/glfw"]
+	path = 3rdpty/sources/glfw
+	url = https://github.com/glfw/glfw.git
+	branch = master
+[submodule "3rdpty/sources/imgui"]
+	path = 3rdpty/sources/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
