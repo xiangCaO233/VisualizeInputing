@@ -1,6 +1,7 @@
 #include "input/InputState.h"
 #include "input/GlobalInputListener.h"
 
+#include <chrono>
 #include <cstddef>
 #include <sstream>
 #include <utility>
@@ -15,6 +16,9 @@ constexpr std::size_t MAX_EVENT_COUNT = 64;
 
 /// @brief InputListener 鼠标按钮最大编号。
 constexpr int MAX_MOUSE_BUTTON = 5;
+
+/// @brief KPS/CPS 统计窗口长度。
+constexpr auto RATE_WINDOW = std::chrono::seconds(1);
 
 /// @brief 获取键盘事件显示文本。
 /// @param event 全局输入事件。
@@ -65,6 +69,8 @@ void InputState::consumeGlobalInput(GlobalInputListener& globalInput)
     while ( globalInput.tryDequeue(event) ) {
         applyGlobalEvent(event);
     }
+
+    pruneRateCounters(RateClock::now());
 }
 
 void InputState::clearEvents()
@@ -87,6 +93,26 @@ bool InputState::isKeyDown(int rawCode) const
     return m_activeKeys.find(rawCode) != m_activeKeys.end();
 }
 
+double InputState::keyKps(int rawCode) const
+{
+    const auto it = m_keyPressTimes.find(rawCode);
+    if ( it == m_keyPressTimes.end() ) {
+        return 0.0;
+    }
+
+    return static_cast<double>(it->second.size());
+}
+
+double InputState::totalKeyKps() const
+{
+    std::size_t total = 0;
+    for ( const auto& keyPressTimes : m_keyPressTimes ) {
+        total += keyPressTimes.second.size();
+    }
+
+    return static_cast<double>(total);
+}
+
 bool InputState::isMouseButtonDown(int button) const
 {
     if ( button < 0 || button >= static_cast<int>(m_mouseButtons.size()) ) {
@@ -94,6 +120,26 @@ bool InputState::isMouseButtonDown(int button) const
     }
 
     return m_mouseButtons[static_cast<std::size_t>(button)];
+}
+
+double InputState::mouseButtonCps(int button) const
+{
+    if ( button < 0 || button >= static_cast<int>(m_mouseClickTimes.size()) ) {
+        return 0.0;
+    }
+
+    return static_cast<double>(
+        m_mouseClickTimes[static_cast<std::size_t>(button)].size());
+}
+
+double InputState::totalMouseCps() const
+{
+    std::size_t total = 0;
+    for ( const auto& clickTimes : m_mouseClickTimes ) {
+        total += clickTimes.size();
+    }
+
+    return static_cast<double>(total);
 }
 
 double InputState::mouseX() const
@@ -122,6 +168,7 @@ void InputState::applyGlobalEvent(const GlobalInputEvent& event)
     case GlobalInputEventType::KeyPress: {
         const auto label         = keyLabel(event);
         m_activeKeys[event.code] = label;
+        recordKeyPress(event.code, event.timestamp);
         pushEvent("Global key down: " + label);
         break;
     }
@@ -138,6 +185,7 @@ void InputState::applyGlobalEvent(const GlobalInputEvent& event)
     case GlobalInputEventType::MousePress: {
         if ( event.code >= 0 && event.code <= MAX_MOUSE_BUTTON ) {
             m_mouseButtons[static_cast<std::size_t>(event.code)] = true;
+            recordMouseClick(event.code, event.timestamp);
         }
         pushEvent("Global mouse down: " + mouseButtonLabel(event.code));
         break;
@@ -163,6 +211,49 @@ void InputState::applyGlobalEvent(const GlobalInputEvent& event)
         pushEvent(scrollEventText(event));
         break;
     }
+    }
+}
+
+void InputState::recordKeyPress(int rawCode, RateTimestamp timestamp)
+{
+    auto& timestamps = m_keyPressTimes[rawCode];
+    timestamps.push_back(timestamp);
+    pruneRateWindow(timestamps, timestamp);
+}
+
+void InputState::recordMouseClick(int button, RateTimestamp timestamp)
+{
+    if ( button < 0 || button >= static_cast<int>(m_mouseClickTimes.size()) ) {
+        return;
+    }
+
+    auto& timestamps = m_mouseClickTimes[static_cast<std::size_t>(button)];
+    timestamps.push_back(timestamp);
+    pruneRateWindow(timestamps, timestamp);
+}
+
+void InputState::pruneRateCounters(RateTimestamp now)
+{
+    for ( auto it = m_keyPressTimes.begin(); it != m_keyPressTimes.end(); ) {
+        pruneRateWindow(it->second, now);
+        if ( it->second.empty() ) {
+            it = m_keyPressTimes.erase(it);
+            continue;
+        }
+
+        ++it;
+    }
+
+    for ( auto& timestamps : m_mouseClickTimes ) {
+        pruneRateWindow(timestamps, now);
+    }
+}
+
+void InputState::pruneRateWindow(std::deque<RateTimestamp>& timestamps,
+                                 RateTimestamp              now)
+{
+    while ( !timestamps.empty() && now - timestamps.front() > RATE_WINDOW ) {
+        timestamps.pop_front();
     }
 }
 

@@ -27,5 +27,5 @@ target_include_directories(visualizeinput
                            PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 target_link_libraries(
-  visualizeinput PRIVATE 3rd_concurrentqueue 3rd_glfw 3rd_imgui
+  visualizeinput PRIVATE 3rd_concurrentqueue 3rd_glfw 3rd_imgui 3rd_implot
                          3rd_inputlistener OpenGL::GL)

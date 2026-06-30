@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <implot.h>
 
 #include <stdexcept>
 
@@ -13,9 +14,14 @@ namespace vi
 ImGuiLayer::ImGuiLayer(NativeWindow& window)
 {
     bool glfwBackendInitialized = false;
+    bool implotContextCreated   = false;
     try {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+        if ( ImPlot::CreateContext() == nullptr ) {
+            throw std::runtime_error("ImPlot context 初始化失败");
+        }
+        implotContextCreated = true;
 
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -38,6 +44,9 @@ ImGuiLayer::ImGuiLayer(NativeWindow& window)
         if ( glfwBackendInitialized ) {
             ImGui_ImplGlfw_Shutdown();
         }
+        if ( implotContextCreated ) {
+            ImPlot::DestroyContext();
+        }
         if ( ImGui::GetCurrentContext() != nullptr ) {
             ImGui::DestroyContext();
         }
@@ -53,6 +62,7 @@ ImGuiLayer::~ImGuiLayer()
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
     m_initialized = false;
 }

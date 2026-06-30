@@ -1,5 +1,6 @@
 #include "input/GlobalInputListener.h"
 
+#include <chrono>
 #include <utility>
 
 namespace vi
@@ -73,9 +74,10 @@ void GlobalInputListener::enqueueKeyEvent(GlobalInputEventType           type,
                                           const InputListener::KeyEvent& event)
 {
     GlobalInputEvent queuedEvent;
-    queuedEvent.type = type;
-    queuedEvent.code = event.getRawCode();
-    queuedEvent.text = event.getKey();
+    queuedEvent.type      = type;
+    queuedEvent.timestamp = std::chrono::steady_clock::now();
+    queuedEvent.code      = event.getRawCode();
+    queuedEvent.text      = event.getKey();
     m_events.enqueue(std::move(queuedEvent));
 }
 
@@ -83,12 +85,13 @@ void GlobalInputListener::enqueueMouseEvent(
     GlobalInputEventType type, const InputListener::MouseEvent& event)
 {
     GlobalInputEvent queuedEvent;
-    queuedEvent.type    = type;
-    queuedEvent.code    = event.getButton();
-    queuedEvent.x       = event.X2D();
-    queuedEvent.y       = event.Y2D();
-    queuedEvent.scrollX = event.getScrollDeltaX();
-    queuedEvent.scrollY = event.getScrollDeltaY();
+    queuedEvent.type      = type;
+    queuedEvent.timestamp = std::chrono::steady_clock::now();
+    queuedEvent.code      = event.getButton();
+    queuedEvent.x         = event.X2D();
+    queuedEvent.y         = event.Y2D();
+    queuedEvent.scrollX   = event.getScrollDeltaX();
+    queuedEvent.scrollY   = event.getScrollDeltaY();
     m_events.enqueue(std::move(queuedEvent));
 }
 

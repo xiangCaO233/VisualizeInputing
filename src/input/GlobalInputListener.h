@@ -3,6 +3,7 @@
 #include <InputListener/InputListener.h>
 #include <concurrentqueue.h>
 
+#include <chrono>
 #include <string>
 
 namespace vi
@@ -24,6 +25,11 @@ enum class GlobalInputEventType {
 struct GlobalInputEvent {
     /// @brief 事件类型。
     GlobalInputEventType type{ GlobalInputEventType::KeyPress };
+
+    /// @brief 事件入队时间，用于按真实输入时间统计 KPS/CPS。
+    std::chrono::steady_clock::time_point timestamp{
+        std::chrono::steady_clock::now()
+    };
 
     /// @brief 键盘原始键码或鼠标按钮编号。
     int code{ 0 };

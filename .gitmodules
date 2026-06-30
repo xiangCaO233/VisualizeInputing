@@ -14,3 +14,7 @@
 	path = 3rdpty/sources/concurrentqueue
 	url = https://github.com/cameron314/concurrentqueue.git
 	branch = master
+[submodule "3rdpty/sources/implot"]
+	path = 3rdpty/sources/implot
+	url = https://github.com/epezent/implot.git
+	branch = master

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <deque>
 
 namespace vi
 {
@@ -55,6 +56,15 @@ private:
     /// @param inputState 输入状态。
     void renderVisualizer(const InputState& inputState);
 
+    /// @brief 绘制总 KPS/CPS 当前值和历史图表。
+    /// @param inputState 输入状态。
+    void renderRateHistory(const InputState& inputState);
+
+    /// @brief 记录总 KPS/CPS 历史采样。
+    /// @param inputState 输入状态。
+    /// @param now 当前 UI 时间，单位秒。
+    void updateRateHistory(const InputState& inputState, double now);
+
     /// @brief 绘制运行设置组件。
     /// @param window 主原生窗口。
     void renderSettings(NativeWindow& window);
@@ -83,7 +93,10 @@ private:
     /// @param label 显示标签。
     /// @param isDown 是否处于按下状态。
     /// @param width 按钮宽度。
-    void drawInputButton(const char* label, bool isDown, float width);
+    /// @param rate 最近 1 秒输入频率。
+    /// @param rateUnit 输入频率单位。
+    void drawInputButton(const char* label, bool isDown, float width,
+                         double rate, const char* rateUnit);
 
     /// @brief 绘制一行键位按钮。
     /// @param inputState 输入状态。
@@ -107,6 +120,24 @@ private:
 
     /// @brief 当前清屏颜色。
     std::array<float, 4> m_clearColor{ 0.08f, 0.09f, 0.10f, 1.0f };
+
+    /// @brief 总输入频率历史采样点。
+    struct RateSample {
+        /// @brief UI 时间戳，单位秒。
+        double time{ 0.0 };
+
+        /// @brief 该时间点的总 KPS。
+        double keyKps{ 0.0 };
+
+        /// @brief 该时间点的总 CPS。
+        double mouseCps{ 0.0 };
+    };
+
+    /// @brief 最近 3 分钟的总输入频率历史。
+    std::deque<RateSample> m_rateHistory;
+
+    /// @brief 上一次记录总输入频率采样的 UI 时间。
+    double m_lastRateSampleTime{ -1.0 };
 };
 
 }  // namespace vi

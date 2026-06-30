@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <deque>
 #include <map>
 #include <string>
@@ -36,10 +37,28 @@ public:
     /// @return 按下时返回 true。
     [[nodiscard]] bool isKeyDown(int rawCode) const;
 
+    /// @brief 获取指定键最近 1 秒的按下次数。
+    /// @param rawCode InputListener 平台原始键码。
+    /// @return 每秒按键次数。
+    [[nodiscard]] double keyKps(int rawCode) const;
+
+    /// @brief 获取所有键最近 1 秒的总按下次数。
+    /// @return 总每秒按键次数。
+    [[nodiscard]] double totalKeyKps() const;
+
     /// @brief 判断指定鼠标按钮是否处于按下状态。
     /// @param button InputListener 鼠标按钮编号。
     /// @return 按下时返回 true。
     [[nodiscard]] bool isMouseButtonDown(int button) const;
+
+    /// @brief 获取指定鼠标按钮最近 1 秒的点击次数。
+    /// @param button InputListener 鼠标按钮编号。
+    /// @return 每秒点击次数。
+    [[nodiscard]] double mouseButtonCps(int button) const;
+
+    /// @brief 获取所有鼠标按钮最近 1 秒的总点击次数。
+    /// @return 总每秒点击次数。
+    [[nodiscard]] double totalMouseCps() const;
 
     /// @brief 获取全局监听器累计的鼠标相对 x 坐标。
     /// @return 鼠标相对 x 坐标。
@@ -58,9 +77,32 @@ public:
     [[nodiscard]] double scrollY() const;
 
 private:
+    using RateClock     = std::chrono::steady_clock;
+    using RateTimestamp = RateClock::time_point;
+
     /// @brief 应用一条全局输入事件。
     /// @param event 全局输入事件。
     void applyGlobalEvent(const GlobalInputEvent& event);
+
+    /// @brief 记录一次键盘按下，用于 KPS 统计。
+    /// @param rawCode InputListener 平台原始键码。
+    /// @param timestamp 事件入队时间。
+    void recordKeyPress(int rawCode, RateTimestamp timestamp);
+
+    /// @brief 记录一次鼠标按钮按下，用于 CPS 统计。
+    /// @param button InputListener 鼠标按钮编号。
+    /// @param timestamp 事件入队时间。
+    void recordMouseClick(int button, RateTimestamp timestamp);
+
+    /// @brief 裁剪所有频率统计窗口。
+    /// @param now 当前时间。
+    void pruneRateCounters(RateTimestamp now);
+
+    /// @brief 裁剪单个频率统计窗口。
+    /// @param timestamps 事件时间窗口。
+    /// @param now 当前时间。
+    static void pruneRateWindow(std::deque<RateTimestamp>& timestamps,
+                                RateTimestamp              now);
 
     /// @brief 追加一条事件日志，并裁剪到最大容量。
     /// @param eventText 事件文本。
@@ -71,6 +113,12 @@ private:
 
     /// @brief 当前处于按下状态的鼠标按钮。
     std::array<bool, 6> m_mouseButtons{};
+
+    /// @brief 每个键最近 1 秒内的按下时间。
+    std::map<int, std::deque<RateTimestamp>> m_keyPressTimes;
+
+    /// @brief 每个鼠标按钮最近 1 秒内的点击时间。
+    std::array<std::deque<RateTimestamp>, 6> m_mouseClickTimes{};
 
     /// @brief 全局监听器累计的鼠标相对 x 坐标。
     double m_mouseX{ 0.0 };

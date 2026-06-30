@@ -3,13 +3,16 @@
 #include "platform/NativeWindow.h"
 
 #include <imgui.h>
+#include <implot.h>
 
 #if defined(__linux__)
 #    include <linux/input-event-codes.h>
 #endif
 
 #include <algorithm>
+#include <cstdio>
 #include <string>
+#include <vector>
 
 #if defined(__linux__)
 #    define VI_INPUT_CODE(code) code
@@ -31,8 +34,20 @@ constexpr int mouseButtonRight = 2;
 /// @brief InputListener 鼠标中键编号。
 constexpr int mouseButtonMiddle = 3;
 
+/// @brief InputListener 鼠标侧键编号。
+constexpr int mouseButtonSide = 4;
+
+/// @brief InputListener 鼠标扩展键编号。
+constexpr int mouseButtonExtra = 5;
+
 /// @brief InputListener 鼠标最大展示按钮编号。
 constexpr int maxMouseButton = 5;
+
+/// @brief 总 KPS/CPS 历史图表时间窗口，单位秒。
+constexpr double rateHistoryWindowSeconds = 180.0;
+
+/// @brief 总 KPS/CPS 历史采样间隔，单位秒。
+constexpr double rateHistorySampleIntervalSeconds = 0.1;
 
 }  // namespace
 
@@ -239,6 +254,7 @@ void MainUi::renderInputMonitor(const InputState& inputState)
 void MainUi::renderVisualizer(const InputState& inputState)
 {
     ImGui::SeparatorText("Visualizer");
+    renderRateHistory(inputState);
 
     const char* row1Labels[] = { "1", "2", "3", "4", "5",
                                  "6", "7", "8", "9", "0" };
@@ -294,6 +310,102 @@ void MainUi::renderVisualizer(const InputState& inputState)
     drawMouseButton(inputState, "Mouse R", mouseButtonRight, 90.0f);
     ImGui::SameLine();
     drawMouseButton(inputState, "Mouse M", mouseButtonMiddle, 90.0f);
+    ImGui::SameLine();
+    drawMouseButton(inputState, "Side", mouseButtonSide, 90.0f);
+    ImGui::SameLine();
+    drawMouseButton(inputState, "Extra", mouseButtonExtra, 90.0f);
+}
+
+void MainUi::renderRateHistory(const InputState& inputState)
+{
+    const double now = ImGui::GetTime();
+    updateRateHistory(inputState, now);
+
+    const double totalKeyKps   = inputState.totalKeyKps();
+    const double totalMouseCps = inputState.totalMouseCps();
+
+    ImGui::Text("Total KPS %.1f", totalKeyKps);
+    ImGui::SameLine();
+    ImGui::Text("Total CPS %.1f", totalMouseCps);
+
+    std::vector<double> xValues;
+    std::vector<double> keyValues;
+    std::vector<double> mouseValues;
+    xValues.reserve(m_rateHistory.size());
+    keyValues.reserve(m_rateHistory.size());
+    mouseValues.reserve(m_rateHistory.size());
+
+    double maxRate = std::max(5.0, std::max(totalKeyKps, totalMouseCps));
+    for ( const RateSample& sample : m_rateHistory ) {
+        xValues.push_back(sample.time - now);
+        keyValues.push_back(sample.keyKps);
+        mouseValues.push_back(sample.mouseCps);
+        maxRate = std::max(maxRate, std::max(sample.keyKps, sample.mouseCps));
+    }
+
+    const ImVec2 plotSize{ -1.0f, 170.0f };
+    if ( ImPlot::BeginPlot(
+             "Total KPS / CPS##RateHistory", plotSize, ImPlotFlags_NoTitle) ) {
+        constexpr ImPlotAxisFlags axisFlags =
+            ImPlotAxisFlags_NoMenus | ImPlotAxisFlags_NoSideSwitch;
+        ImPlot::SetupAxes("Seconds ago", "Rate", axisFlags, axisFlags);
+        ImPlot::SetupAxesLimits(-rateHistoryWindowSeconds,
+                                0.0,
+                                0.0,
+                                maxRate + 1.0,
+                                ImPlotCond_Always);
+        ImPlot::SetupAxisFormat(ImAxis_X1, "%.0f");
+        ImPlot::SetupAxisFormat(ImAxis_Y1, "%.0f");
+
+        const int sampleCount = static_cast<int>(xValues.size());
+        if ( sampleCount > 0 ) {
+            ImPlot::PlotLine("Total KPS",
+                             xValues.data(),
+                             keyValues.data(),
+                             sampleCount,
+                             { ImPlotProp_LineColor,
+                               ImVec4{ 0.32f, 0.75f, 1.0f, 1.0f },
+                               ImPlotProp_FillColor,
+                               ImVec4{ 0.32f, 0.75f, 1.0f, 1.0f },
+                               ImPlotProp_FillAlpha,
+                               0.18f,
+                               ImPlotProp_Flags,
+                               ImPlotLineFlags_Shaded });
+            ImPlot::PlotLine("Total CPS",
+                             xValues.data(),
+                             mouseValues.data(),
+                             sampleCount,
+                             { ImPlotProp_LineColor,
+                               ImVec4{ 0.98f, 0.72f, 0.28f, 1.0f },
+                               ImPlotProp_FillColor,
+                               ImVec4{ 0.98f, 0.72f, 0.28f, 1.0f },
+                               ImPlotProp_FillAlpha,
+                               0.18f,
+                               ImPlotProp_Flags,
+                               ImPlotLineFlags_Shaded });
+        }
+
+        ImPlot::EndPlot();
+    }
+
+    ImGui::Separator();
+}
+
+void MainUi::updateRateHistory(const InputState& inputState, double now)
+{
+    if ( m_lastRateSampleTime >= 0.0 &&
+         now - m_lastRateSampleTime < rateHistorySampleIntervalSeconds ) {
+        return;
+    }
+
+    m_rateHistory.push_back(RateSample{
+        now, inputState.totalKeyKps(), inputState.totalMouseCps() });
+    m_lastRateSampleTime = now;
+
+    while ( !m_rateHistory.empty() &&
+            now - m_rateHistory.front().time > rateHistoryWindowSeconds ) {
+        m_rateHistory.pop_front();
+    }
 }
 
 void MainUi::renderSettings(NativeWindow& window)
@@ -335,17 +447,32 @@ void MainUi::renderEventLog(InputState& inputState)
 void MainUi::drawKey(const InputState& inputState, const char* label, int key,
                      float width)
 {
-    drawInputButton(label, inputState.isKeyDown(key), width);
+    drawInputButton(
+        label, inputState.isKeyDown(key), width, inputState.keyKps(key), "KPS");
 }
 
 void MainUi::drawMouseButton(const InputState& inputState, const char* label,
                              int button, float width)
 {
-    drawInputButton(label, inputState.isMouseButtonDown(button), width);
+    drawInputButton(label,
+                    inputState.isMouseButtonDown(button),
+                    width,
+                    inputState.mouseButtonCps(button),
+                    "CPS");
 }
 
-void MainUi::drawInputButton(const char* label, bool isDown, float width)
+void MainUi::drawInputButton(const char* label, bool isDown, float width,
+                             double rate, const char* rateUnit)
 {
+    char rateText[32];
+    std::snprintf(rateText, sizeof(rateText), "%.1f %s", rate, rateUnit);
+
+    const float textWidth = ImGui::CalcTextSize(rateText).x;
+    const float itemWidth = std::max(width, textWidth);
+    const float startX    = ImGui::GetCursorPosX();
+
+    ImGui::BeginGroup();
+
     if ( isDown ) {
         ImGui::PushStyleColor(ImGuiCol_Button,
                               ImVec4{ 0.20f, 0.56f, 0.36f, 1.0f });
@@ -355,11 +482,16 @@ void MainUi::drawInputButton(const char* label, bool isDown, float width)
                               ImVec4{ 0.30f, 0.74f, 0.50f, 1.0f });
     }
 
+    ImGui::SetCursorPosX(startX + (itemWidth - width) * 0.5f);
     ImGui::Button(label, ImVec2{ width, 36.0f });
 
     if ( isDown ) {
         ImGui::PopStyleColor(3);
     }
+
+    ImGui::SetCursorPosX(startX + (itemWidth - textWidth) * 0.5f);
+    ImGui::TextDisabled("%s", rateText);
+    ImGui::EndGroup();
 }
 
 void MainUi::drawKeyRow(const InputState& inputState, const char* const* labels,
