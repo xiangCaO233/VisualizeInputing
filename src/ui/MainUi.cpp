@@ -7,6 +7,14 @@
 
 #if defined(__linux__)
 #    include <linux/input-event-codes.h>
+#elif defined(_WIN32)
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    include <windows.h>
 #endif
 
 #include <algorithm>
@@ -16,6 +24,51 @@
 
 #if defined(__linux__)
 #    define VI_INPUT_CODE(code) code
+#elif defined(_WIN32)
+#    define VI_INPUT_CODE(code) VI_WIN32_INPUT_CODE_##code
+#    define VI_WIN32_INPUT_CODE_KEY_0 '0'
+#    define VI_WIN32_INPUT_CODE_KEY_1 '1'
+#    define VI_WIN32_INPUT_CODE_KEY_2 '2'
+#    define VI_WIN32_INPUT_CODE_KEY_3 '3'
+#    define VI_WIN32_INPUT_CODE_KEY_4 '4'
+#    define VI_WIN32_INPUT_CODE_KEY_5 '5'
+#    define VI_WIN32_INPUT_CODE_KEY_6 '6'
+#    define VI_WIN32_INPUT_CODE_KEY_7 '7'
+#    define VI_WIN32_INPUT_CODE_KEY_8 '8'
+#    define VI_WIN32_INPUT_CODE_KEY_9 '9'
+#    define VI_WIN32_INPUT_CODE_KEY_A 'A'
+#    define VI_WIN32_INPUT_CODE_KEY_B 'B'
+#    define VI_WIN32_INPUT_CODE_KEY_C 'C'
+#    define VI_WIN32_INPUT_CODE_KEY_D 'D'
+#    define VI_WIN32_INPUT_CODE_KEY_E 'E'
+#    define VI_WIN32_INPUT_CODE_KEY_F 'F'
+#    define VI_WIN32_INPUT_CODE_KEY_G 'G'
+#    define VI_WIN32_INPUT_CODE_KEY_H 'H'
+#    define VI_WIN32_INPUT_CODE_KEY_I 'I'
+#    define VI_WIN32_INPUT_CODE_KEY_J 'J'
+#    define VI_WIN32_INPUT_CODE_KEY_K 'K'
+#    define VI_WIN32_INPUT_CODE_KEY_L 'L'
+#    define VI_WIN32_INPUT_CODE_KEY_M 'M'
+#    define VI_WIN32_INPUT_CODE_KEY_N 'N'
+#    define VI_WIN32_INPUT_CODE_KEY_O 'O'
+#    define VI_WIN32_INPUT_CODE_KEY_P 'P'
+#    define VI_WIN32_INPUT_CODE_KEY_Q 'Q'
+#    define VI_WIN32_INPUT_CODE_KEY_R 'R'
+#    define VI_WIN32_INPUT_CODE_KEY_S 'S'
+#    define VI_WIN32_INPUT_CODE_KEY_T 'T'
+#    define VI_WIN32_INPUT_CODE_KEY_U 'U'
+#    define VI_WIN32_INPUT_CODE_KEY_V 'V'
+#    define VI_WIN32_INPUT_CODE_KEY_W 'W'
+#    define VI_WIN32_INPUT_CODE_KEY_X 'X'
+#    define VI_WIN32_INPUT_CODE_KEY_Y 'Y'
+#    define VI_WIN32_INPUT_CODE_KEY_Z 'Z'
+#    define VI_WIN32_INPUT_CODE_KEY_LEFTCTRL VK_LCONTROL
+#    define VI_WIN32_INPUT_CODE_KEY_LEFTALT VK_LMENU
+#    define VI_WIN32_INPUT_CODE_KEY_SPACE VK_SPACE
+#    define VI_WIN32_INPUT_CODE_KEY_LEFT VK_LEFT
+#    define VI_WIN32_INPUT_CODE_KEY_DOWN VK_DOWN
+#    define VI_WIN32_INPUT_CODE_KEY_UP VK_UP
+#    define VI_WIN32_INPUT_CODE_KEY_RIGHT VK_RIGHT
 #else
 #    define VI_INPUT_CODE(code) -1
 #endif
@@ -511,3 +564,48 @@ void MainUi::drawKeyRow(const InputState& inputState, const char* const* labels,
 }  // namespace vi
 
 #undef VI_INPUT_CODE
+#if defined(_WIN32)
+#    undef VI_WIN32_INPUT_CODE_KEY_0
+#    undef VI_WIN32_INPUT_CODE_KEY_1
+#    undef VI_WIN32_INPUT_CODE_KEY_2
+#    undef VI_WIN32_INPUT_CODE_KEY_3
+#    undef VI_WIN32_INPUT_CODE_KEY_4
+#    undef VI_WIN32_INPUT_CODE_KEY_5
+#    undef VI_WIN32_INPUT_CODE_KEY_6
+#    undef VI_WIN32_INPUT_CODE_KEY_7
+#    undef VI_WIN32_INPUT_CODE_KEY_8
+#    undef VI_WIN32_INPUT_CODE_KEY_9
+#    undef VI_WIN32_INPUT_CODE_KEY_A
+#    undef VI_WIN32_INPUT_CODE_KEY_B
+#    undef VI_WIN32_INPUT_CODE_KEY_C
+#    undef VI_WIN32_INPUT_CODE_KEY_D
+#    undef VI_WIN32_INPUT_CODE_KEY_E
+#    undef VI_WIN32_INPUT_CODE_KEY_F
+#    undef VI_WIN32_INPUT_CODE_KEY_G
+#    undef VI_WIN32_INPUT_CODE_KEY_H
+#    undef VI_WIN32_INPUT_CODE_KEY_I
+#    undef VI_WIN32_INPUT_CODE_KEY_J
+#    undef VI_WIN32_INPUT_CODE_KEY_K
+#    undef VI_WIN32_INPUT_CODE_KEY_L
+#    undef VI_WIN32_INPUT_CODE_KEY_M
+#    undef VI_WIN32_INPUT_CODE_KEY_N
+#    undef VI_WIN32_INPUT_CODE_KEY_O
+#    undef VI_WIN32_INPUT_CODE_KEY_P
+#    undef VI_WIN32_INPUT_CODE_KEY_Q
+#    undef VI_WIN32_INPUT_CODE_KEY_R
+#    undef VI_WIN32_INPUT_CODE_KEY_S
+#    undef VI_WIN32_INPUT_CODE_KEY_T
+#    undef VI_WIN32_INPUT_CODE_KEY_U
+#    undef VI_WIN32_INPUT_CODE_KEY_V
+#    undef VI_WIN32_INPUT_CODE_KEY_W
+#    undef VI_WIN32_INPUT_CODE_KEY_X
+#    undef VI_WIN32_INPUT_CODE_KEY_Y
+#    undef VI_WIN32_INPUT_CODE_KEY_Z
+#    undef VI_WIN32_INPUT_CODE_KEY_LEFTCTRL
+#    undef VI_WIN32_INPUT_CODE_KEY_LEFTALT
+#    undef VI_WIN32_INPUT_CODE_KEY_SPACE
+#    undef VI_WIN32_INPUT_CODE_KEY_LEFT
+#    undef VI_WIN32_INPUT_CODE_KEY_DOWN
+#    undef VI_WIN32_INPUT_CODE_KEY_UP
+#    undef VI_WIN32_INPUT_CODE_KEY_RIGHT
+#endif
