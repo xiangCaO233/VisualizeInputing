@@ -43,13 +43,17 @@ private:
 
     /// @brief 绘制输入状态、键鼠可视化和设置面板。
     /// @param window 主原生窗口。
-    void renderListenerPanels(NativeWindow& window);
+    /// @param inputState 输入状态。
+    void renderListenerPanels(NativeWindow&     window,
+                              const InputState& inputState);
 
     /// @brief 绘制输入状态组件。
-    void renderInputMonitor();
+    /// @param inputState 输入状态。
+    void renderInputMonitor(const InputState& inputState);
 
     /// @brief 绘制键鼠可视化组件。
-    void renderVisualizer();
+    /// @param inputState 输入状态。
+    void renderVisualizer(const InputState& inputState);
 
     /// @brief 绘制运行设置组件。
     /// @param window 主原生窗口。
@@ -60,16 +64,34 @@ private:
     void renderEventLog(InputState& inputState);
 
     /// @brief 绘制一个键位按钮。
+    /// @param inputState 输入状态。
     /// @param label 显示标签。
-    /// @param key ImGuiKey 键位。
+    /// @param key InputListener 平台原始键码。
     /// @param width 按钮宽度。
-    void drawKey(const char* label, int key, float width = 44.0f);
+    void drawKey(const InputState& inputState, const char* label, int key,
+                 float width = 44.0f);
+
+    /// @brief 绘制一个鼠标按钮。
+    /// @param inputState 输入状态。
+    /// @param label 显示标签。
+    /// @param button InputListener 鼠标按钮编号。
+    /// @param width 按钮宽度。
+    void drawMouseButton(const InputState& inputState, const char* label,
+                         int button, float width = 44.0f);
+
+    /// @brief 绘制一个输入状态按钮。
+    /// @param label 显示标签。
+    /// @param isDown 是否处于按下状态。
+    /// @param width 按钮宽度。
+    void drawInputButton(const char* label, bool isDown, float width);
 
     /// @brief 绘制一行键位按钮。
+    /// @param inputState 输入状态。
     /// @param labels 标签数组。
-    /// @param keys ImGuiKey 数组。
+    /// @param keys InputListener 平台原始键码数组。
     /// @param count 键位数量。
-    void drawKeyRow(const char* const* labels, const int* keys, int count);
+    void drawKeyRow(const InputState& inputState, const char* const* labels,
+                    const int* keys, int count);
 
     /// @brief 是否显示 ImGui demo 窗口。
     bool m_showDemoWindow{ false };

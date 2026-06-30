@@ -10,3 +10,7 @@
 	path = 3rdpty/sources/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "3rdpty/sources/concurrentqueue"]
+	path = 3rdpty/sources/concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue.git
+	branch = master

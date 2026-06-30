@@ -1,6 +1,7 @@
 #include "app/Application.h"
 #include "app/AppLoop.h"
 #include "imgui/ImGuiLayer.h"
+#include "input/GlobalInputListener.h"
 #include "input/InputState.h"
 #include "platform/NativeWindow.h"
 #include "ui/MainUi.h"
@@ -22,11 +23,12 @@ int Application::run()
     windowConfig.height      = m_config.height;
     windowConfig.enableVsync = m_config.enableVsync;
 
-    NativeWindow window(windowConfig);
-    ImGuiLayer   imguiLayer(window);
-    InputState   inputState;
-    MainUi       mainUi(m_config.enableVsync);
-    AppLoop      loop(window, imguiLayer, mainUi, inputState);
+    NativeWindow        window(windowConfig);
+    ImGuiLayer          imguiLayer(window);
+    InputState          inputState;
+    GlobalInputListener globalInputListener;
+    MainUi              mainUi(m_config.enableVsync);
+    AppLoop loop(window, imguiLayer, mainUi, inputState, globalInputListener);
 
     return loop.run();
 }

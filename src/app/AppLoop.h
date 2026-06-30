@@ -4,6 +4,7 @@ namespace vi
 {
 
 class ImGuiLayer;
+class GlobalInputListener;
 class InputState;
 class MainUi;
 class NativeWindow;
@@ -17,8 +18,9 @@ public:
     /// @param imguiLayer ImGui 生命周期和 backend 层。
     /// @param mainUi 主 UI。
     /// @param inputState 输入状态。
+    /// @param globalInputListener 全局输入监听器。
     AppLoop(NativeWindow& window, ImGuiLayer& imguiLayer, MainUi& mainUi,
-            InputState& inputState);
+            InputState& inputState, GlobalInputListener& globalInputListener);
 
     /// @brief 进入主循环直到窗口关闭。
     /// @return 退出码，0 表示正常退出。
@@ -41,6 +43,9 @@ private:
 
     /// @brief 输入状态观察引用。
     InputState& m_inputState;
+
+    /// @brief 全局输入监听器观察引用。
+    GlobalInputListener& m_globalInputListener;
 };
 
 }  // namespace vi

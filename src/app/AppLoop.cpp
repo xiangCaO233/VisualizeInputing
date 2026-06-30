@@ -2,6 +2,7 @@
 
 #include "app/AppLoop.h"
 #include "imgui/ImGuiLayer.h"
+#include "input/GlobalInputListener.h"
 #include "input/InputState.h"
 #include "platform/NativeWindow.h"
 #include "ui/MainUi.h"
@@ -16,11 +17,13 @@ namespace vi
 {
 
 AppLoop::AppLoop(NativeWindow& window, ImGuiLayer& imguiLayer, MainUi& mainUi,
-                 InputState& inputState)
+                 InputState&          inputState,
+                 GlobalInputListener& globalInputListener)
     : m_window(window)
     , m_imguiLayer(imguiLayer)
     , m_mainUi(mainUi)
     , m_inputState(inputState)
+    , m_globalInputListener(globalInputListener)
 {
 }
 
@@ -28,6 +31,7 @@ int AppLoop::run()
 {
     while ( !m_window.shouldClose() ) {
         m_window.pollEvents();
+        m_inputState.consumeGlobalInput(m_globalInputListener);
 
         if ( m_window.isIconified() ) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -35,7 +39,6 @@ int AppLoop::run()
         }
 
         m_imguiLayer.beginFrame();
-        m_inputState.recordFrameInput();
         m_mainUi.render(m_window, m_inputState);
         renderFrame();
     }

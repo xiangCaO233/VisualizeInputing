@@ -4,11 +4,37 @@
 
 #include <imgui.h>
 
+#if defined(__linux__)
+#    include <linux/input-event-codes.h>
+#endif
+
 #include <algorithm>
 #include <string>
 
+#if defined(__linux__)
+#    define VI_INPUT_CODE(code) code
+#else
+#    define VI_INPUT_CODE(code) -1
+#endif
+
 namespace vi
 {
+namespace
+{
+
+/// @brief InputListener 鼠标左键编号。
+constexpr int mouseButtonLeft = 1;
+
+/// @brief InputListener 鼠标右键编号。
+constexpr int mouseButtonRight = 2;
+
+/// @brief InputListener 鼠标中键编号。
+constexpr int mouseButtonMiddle = 3;
+
+/// @brief InputListener 鼠标最大展示按钮编号。
+constexpr int maxMouseButton = 5;
+
+}  // namespace
 
 MainUi::MainUi(bool enableVsync) : m_enableVsync(enableVsync) {}
 
@@ -104,7 +130,7 @@ void MainUi::renderListenerWorkspace(NativeWindow& window,
             : 0.0f;
 
     ImGui::BeginChild("Listener Workspace", ImVec2{ 0.0f, monitorHeight });
-    renderListenerPanels(window);
+    renderListenerPanels(window, inputState);
     ImGui::EndChild();
 
     if ( !m_showEventLog ) {
@@ -117,7 +143,8 @@ void MainUi::renderListenerWorkspace(NativeWindow& window,
     ImGui::EndChild();
 }
 
-void MainUi::renderListenerPanels(NativeWindow& window)
+void MainUi::renderListenerPanels(NativeWindow&     window,
+                                  const InputState& inputState)
 {
     const ImVec2 availableSize = ImGui::GetContentRegionAvail();
     const bool   wideLayout    = availableSize.x >= 820.0f;
@@ -136,13 +163,13 @@ void MainUi::renderListenerPanels(NativeWindow& window)
         ImGui::TableSetColumnIndex(0);
         ImGui::BeginChild(
             "Input Monitor", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
-        renderInputMonitor();
+        renderInputMonitor(inputState);
         ImGui::EndChild();
 
         ImGui::TableSetColumnIndex(1);
         ImGui::BeginChild(
             "Visualizer", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
-        renderVisualizer();
+        renderVisualizer(inputState);
         renderSettings(window);
         ImGui::EndChild();
 
@@ -154,28 +181,37 @@ void MainUi::renderListenerPanels(NativeWindow& window)
         std::clamp(availableSize.y * 0.34f, 150.0f, 220.0f);
     ImGui::BeginChild(
         "Input Monitor", ImVec2{ 0.0f, inputHeight }, ImGuiChildFlags_Borders);
-    renderInputMonitor();
+    renderInputMonitor(inputState);
     ImGui::EndChild();
 
     ImGui::BeginChild(
         "Visualizer", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
-    renderVisualizer();
+    renderVisualizer(inputState);
     renderSettings(window);
     ImGui::EndChild();
 }
 
-void MainUi::renderInputMonitor()
+void MainUi::renderInputMonitor(const InputState& inputState)
 {
     ImGui::SeparatorText("Input Monitor");
 
-    const ImGuiIO& io = ImGui::GetIO();
-    ImGui::Text("Mouse");
-    ImGui::Text("Position: %.1f, %.1f", io.MousePos.x, io.MousePos.y);
-    ImGui::Text("Wheel: %.2f horizontal %.2f", io.MouseWheel, io.MouseWheelH);
+    ImGui::Text("Source: InputListener global hook");
+#if defined(__linux__)
+    ImGui::TextDisabled(
+        "Linux backend reads /dev/input/event* without window focus.");
+#endif
 
-    for ( int button = 0; button < 5; ++button ) {
-        ImGui::SameLine(button == 0 ? 0.0f : -1.0f);
-        const bool down = ImGui::IsMouseDown(button);
+    ImGui::Text("Mouse");
+    ImGui::Text("Relative position: %.1f, %.1f",
+                inputState.mouseX(),
+                inputState.mouseY());
+    ImGui::Text("Wheel delta: %.2f horizontal %.2f",
+                inputState.scrollY(),
+                inputState.scrollX());
+
+    for ( int button = mouseButtonLeft; button <= maxMouseButton; ++button ) {
+        ImGui::SameLine(button == mouseButtonLeft ? 0.0f : -1.0f);
+        const bool down = inputState.isMouseButtonDown(button);
         ImGui::TextColored(down ? ImVec4{ 0.35f, 0.95f, 0.65f, 1.0f }
                                 : ImVec4{ 0.55f, 0.58f, 0.62f, 1.0f },
                            "B%d",
@@ -185,19 +221,13 @@ void MainUi::renderInputMonitor()
     ImGui::Separator();
     ImGui::Text("Active keys");
     int shownKeys = 0;
-    for ( int key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END;
-          ++key ) {
-        const auto imguiKey = static_cast<ImGuiKey>(key);
-        if ( !ImGui::IsKeyDown(imguiKey) ) {
-            continue;
-        }
-
+    for ( const auto& activeKey : inputState.activeKeys() ) {
         if ( shownKeys > 0 ) {
             ImGui::SameLine();
         }
         ImGui::TextColored(ImVec4{ 0.35f, 0.95f, 0.65f, 1.0f },
                            "%s",
-                           ImGui::GetKeyName(imguiKey));
+                           activeKey.second.c_str());
         ++shownKeys;
     }
 
@@ -206,56 +236,64 @@ void MainUi::renderInputMonitor()
     }
 }
 
-void MainUi::renderVisualizer()
+void MainUi::renderVisualizer(const InputState& inputState)
 {
     ImGui::SeparatorText("Visualizer");
 
     const char* row1Labels[] = { "1", "2", "3", "4", "5",
                                  "6", "7", "8", "9", "0" };
-    const int   row1Keys[]   = { ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4,
-                                 ImGuiKey_5, ImGuiKey_6, ImGuiKey_7, ImGuiKey_8,
-                                 ImGuiKey_9, ImGuiKey_0 };
-    drawKeyRow(row1Labels, row1Keys, 10);
+    const int   row1Keys[]   = { VI_INPUT_CODE(KEY_1), VI_INPUT_CODE(KEY_2),
+                                 VI_INPUT_CODE(KEY_3), VI_INPUT_CODE(KEY_4),
+                                 VI_INPUT_CODE(KEY_5), VI_INPUT_CODE(KEY_6),
+                                 VI_INPUT_CODE(KEY_7), VI_INPUT_CODE(KEY_8),
+                                 VI_INPUT_CODE(KEY_9), VI_INPUT_CODE(KEY_0) };
+    drawKeyRow(inputState, row1Labels, row1Keys, 10);
 
     const char* row2Labels[] = { "Q", "W", "E", "R", "T",
                                  "Y", "U", "I", "O", "P" };
-    const int   row2Keys[]   = { ImGuiKey_Q, ImGuiKey_W, ImGuiKey_E, ImGuiKey_R,
-                                 ImGuiKey_T, ImGuiKey_Y, ImGuiKey_U, ImGuiKey_I,
-                                 ImGuiKey_O, ImGuiKey_P };
-    drawKeyRow(row2Labels, row2Keys, 10);
+    const int   row2Keys[]   = { VI_INPUT_CODE(KEY_Q), VI_INPUT_CODE(KEY_W),
+                                 VI_INPUT_CODE(KEY_E), VI_INPUT_CODE(KEY_R),
+                                 VI_INPUT_CODE(KEY_T), VI_INPUT_CODE(KEY_Y),
+                                 VI_INPUT_CODE(KEY_U), VI_INPUT_CODE(KEY_I),
+                                 VI_INPUT_CODE(KEY_O), VI_INPUT_CODE(KEY_P) };
+    drawKeyRow(inputState, row2Labels, row2Keys, 10);
 
     const char* row3Labels[] = { "A", "S", "D", "F", "G", "H", "J", "K", "L" };
-    const int   row3Keys[]   = { ImGuiKey_A, ImGuiKey_S, ImGuiKey_D,
-                                 ImGuiKey_F, ImGuiKey_G, ImGuiKey_H,
-                                 ImGuiKey_J, ImGuiKey_K, ImGuiKey_L };
-    drawKeyRow(row3Labels, row3Keys, 9);
+    const int   row3Keys[]   = { VI_INPUT_CODE(KEY_A), VI_INPUT_CODE(KEY_S),
+                                 VI_INPUT_CODE(KEY_D), VI_INPUT_CODE(KEY_F),
+                                 VI_INPUT_CODE(KEY_G), VI_INPUT_CODE(KEY_H),
+                                 VI_INPUT_CODE(KEY_J), VI_INPUT_CODE(KEY_K),
+                                 VI_INPUT_CODE(KEY_L) };
+    drawKeyRow(inputState, row3Labels, row3Keys, 9);
 
     const char* row4Labels[] = { "Z", "X", "C", "V", "B", "N", "M" };
-    const int   row4Keys[]   = { ImGuiKey_Z, ImGuiKey_X, ImGuiKey_C, ImGuiKey_V,
-                                 ImGuiKey_B, ImGuiKey_N, ImGuiKey_M };
-    drawKeyRow(row4Labels, row4Keys, 7);
+    const int   row4Keys[]   = { VI_INPUT_CODE(KEY_Z), VI_INPUT_CODE(KEY_X),
+                                 VI_INPUT_CODE(KEY_C), VI_INPUT_CODE(KEY_V),
+                                 VI_INPUT_CODE(KEY_B), VI_INPUT_CODE(KEY_N),
+                                 VI_INPUT_CODE(KEY_M) };
+    drawKeyRow(inputState, row4Labels, row4Keys, 7);
 
     ImGui::Separator();
-    drawKey("Ctrl", ImGuiKey_LeftCtrl, 56.0f);
+    drawKey(inputState, "Ctrl", VI_INPUT_CODE(KEY_LEFTCTRL), 56.0f);
     ImGui::SameLine();
-    drawKey("Alt", ImGuiKey_LeftAlt, 56.0f);
+    drawKey(inputState, "Alt", VI_INPUT_CODE(KEY_LEFTALT), 56.0f);
     ImGui::SameLine();
-    drawKey("Space", ImGuiKey_Space, 180.0f);
+    drawKey(inputState, "Space", VI_INPUT_CODE(KEY_SPACE), 180.0f);
     ImGui::SameLine();
-    drawKey("Left", ImGuiKey_LeftArrow, 56.0f);
+    drawKey(inputState, "Left", VI_INPUT_CODE(KEY_LEFT), 56.0f);
     ImGui::SameLine();
-    drawKey("Down", ImGuiKey_DownArrow, 56.0f);
+    drawKey(inputState, "Down", VI_INPUT_CODE(KEY_DOWN), 56.0f);
     ImGui::SameLine();
-    drawKey("Up", ImGuiKey_UpArrow, 56.0f);
+    drawKey(inputState, "Up", VI_INPUT_CODE(KEY_UP), 56.0f);
     ImGui::SameLine();
-    drawKey("Right", ImGuiKey_RightArrow, 56.0f);
+    drawKey(inputState, "Right", VI_INPUT_CODE(KEY_RIGHT), 56.0f);
 
     ImGui::Separator();
-    drawKey("Mouse L", ImGuiKey_MouseLeft, 90.0f);
+    drawMouseButton(inputState, "Mouse L", mouseButtonLeft, 90.0f);
     ImGui::SameLine();
-    drawKey("Mouse R", ImGuiKey_MouseRight, 90.0f);
+    drawMouseButton(inputState, "Mouse R", mouseButtonRight, 90.0f);
     ImGui::SameLine();
-    drawKey("Mouse M", ImGuiKey_MouseMiddle, 90.0f);
+    drawMouseButton(inputState, "Mouse M", mouseButtonMiddle, 90.0f);
 }
 
 void MainUi::renderSettings(NativeWindow& window)
@@ -294,9 +332,20 @@ void MainUi::renderEventLog(InputState& inputState)
     }
 }
 
-void MainUi::drawKey(const char* label, int key, float width)
+void MainUi::drawKey(const InputState& inputState, const char* label, int key,
+                     float width)
 {
-    const bool isDown = ImGui::IsKeyDown(static_cast<ImGuiKey>(key));
+    drawInputButton(label, inputState.isKeyDown(key), width);
+}
+
+void MainUi::drawMouseButton(const InputState& inputState, const char* label,
+                             int button, float width)
+{
+    drawInputButton(label, inputState.isMouseButtonDown(button), width);
+}
+
+void MainUi::drawInputButton(const char* label, bool isDown, float width)
+{
     if ( isDown ) {
         ImGui::PushStyleColor(ImGuiCol_Button,
                               ImVec4{ 0.20f, 0.56f, 0.36f, 1.0f });
@@ -313,14 +362,17 @@ void MainUi::drawKey(const char* label, int key, float width)
     }
 }
 
-void MainUi::drawKeyRow(const char* const* labels, const int* keys, int count)
+void MainUi::drawKeyRow(const InputState& inputState, const char* const* labels,
+                        const int* keys, int count)
 {
     for ( int i = 0; i < count; ++i ) {
         if ( i > 0 ) {
             ImGui::SameLine();
         }
-        drawKey(labels[i], keys[i]);
+        drawKey(inputState, labels[i], keys[i]);
     }
 }
 
 }  // namespace vi
+
+#undef VI_INPUT_CODE

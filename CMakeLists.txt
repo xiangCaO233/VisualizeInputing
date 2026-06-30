@@ -16,6 +16,7 @@ set(SOURCES
     src/app/Application.cpp
     src/app/AppLoop.cpp
     src/imgui/ImGuiLayer.cpp
+    src/input/GlobalInputListener.cpp
     src/input/InputState.cpp
     src/platform/NativeWindow.cpp
     src/ui/MainUi.cpp)
@@ -25,4 +26,6 @@ add_executable(visualizeinput ${SOURCES})
 target_include_directories(visualizeinput
                            PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
-target_link_libraries(visualizeinput PRIVATE 3rd_glfw 3rd_imgui OpenGL::GL)
+target_link_libraries(
+  visualizeinput PRIVATE 3rd_concurrentqueue 3rd_glfw 3rd_imgui
+                         3rd_inputlistener OpenGL::GL)
