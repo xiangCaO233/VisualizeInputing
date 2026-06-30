@@ -224,8 +224,11 @@ void MainUi::renderInputMonitor(const InputState& inputState)
                 inputState.scrollY(),
                 inputState.scrollX());
 
+    ImGui::TextUnformatted("Buttons");
     for ( int button = mouseButtonLeft; button <= maxMouseButton; ++button ) {
-        ImGui::SameLine(button == mouseButtonLeft ? 0.0f : -1.0f);
+        if ( button > mouseButtonLeft ) {
+            ImGui::SameLine();
+        }
         const bool down = inputState.isMouseButtonDown(button);
         ImGui::TextColored(down ? ImVec4{ 0.35f, 0.95f, 0.65f, 1.0f }
                                 : ImVec4{ 0.55f, 0.58f, 0.62f, 1.0f },
