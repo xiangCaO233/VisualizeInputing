@@ -8,7 +8,7 @@ namespace vi
 class InputState;
 class NativeWindow;
 
-/// @brief 主 ImGui 界面，负责菜单、DockSpace 和输入可视化窗口绘制。
+/// @brief 主 ImGui 界面，负责菜单和输入监听工作区绘制。
 class MainUi
 {
 public:
@@ -27,24 +27,35 @@ public:
     [[nodiscard]] const std::array<float, 4>& clearColor() const;
 
 private:
-    /// @brief 绘制主菜单栏。
+    /// @brief 绘制铺满原生窗口的主 ImGui 窗口。
+    /// @param window 主原生窗口。
+    /// @param inputState 输入状态。
+    void renderMainWindow(NativeWindow& window, InputState& inputState);
+
+    /// @brief 绘制主窗口内部菜单栏。
     /// @param window 主原生窗口。
     void renderMainMenu(NativeWindow& window);
 
-    /// @brief 绘制主 DockSpace。
-    void renderDockspace();
+    /// @brief 绘制监听组件工作区。
+    /// @param window 主原生窗口。
+    /// @param inputState 输入状态。
+    void renderListenerWorkspace(NativeWindow& window, InputState& inputState);
 
-    /// @brief 绘制输入状态面板。
+    /// @brief 绘制输入状态、键鼠可视化和设置面板。
+    /// @param window 主原生窗口。
+    void renderListenerPanels(NativeWindow& window);
+
+    /// @brief 绘制输入状态组件。
     void renderInputMonitor();
 
-    /// @brief 绘制键鼠可视化面板。
+    /// @brief 绘制键鼠可视化组件。
     void renderVisualizer();
 
-    /// @brief 绘制运行设置面板。
+    /// @brief 绘制运行设置组件。
     /// @param window 主原生窗口。
     void renderSettings(NativeWindow& window);
 
-    /// @brief 绘制输入事件日志面板。
+    /// @brief 绘制输入事件日志组件。
     /// @param inputState 输入状态。
     void renderEventLog(InputState& inputState);
 

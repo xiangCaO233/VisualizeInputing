@@ -4,6 +4,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <string>
 
 namespace vi
@@ -13,15 +14,7 @@ MainUi::MainUi(bool enableVsync) : m_enableVsync(enableVsync) {}
 
 void MainUi::render(NativeWindow& window, InputState& inputState)
 {
-    renderDockspace();
-    renderMainMenu(window);
-    renderInputMonitor();
-    renderVisualizer();
-    renderSettings(window);
-
-    if ( m_showEventLog ) {
-        renderEventLog(inputState);
-    }
+    renderMainWindow(window, inputState);
 
     if ( m_showDemoWindow ) {
         ImGui::ShowDemoWindow(&m_showDemoWindow);
@@ -37,9 +30,38 @@ const std::array<float, 4>& MainUi::clearColor() const
     return m_clearColor;
 }
 
+void MainUi::renderMainWindow(NativeWindow& window, InputState& inputState)
+{
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 12.0f, 12.0f });
+
+    constexpr ImGuiWindowFlags windowFlags =
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
+
+    const bool visible =
+        ImGui::Begin("VisualizeInputing", nullptr, windowFlags);
+    ImGui::PopStyleVar(3);
+
+    if ( visible ) {
+        renderMainMenu(window);
+        renderListenerWorkspace(window, inputState);
+    }
+
+    ImGui::End();
+}
+
 void MainUi::renderMainMenu(NativeWindow& window)
 {
-    if ( !ImGui::BeginMainMenuBar() ) {
+    if ( !ImGui::BeginMenuBar() ) {
         return;
     }
 
@@ -59,18 +81,92 @@ void MainUi::renderMainMenu(NativeWindow& window)
 
     ImGui::Separator();
     ImGui::Text("FPS %.1f", ImGui::GetIO().Framerate);
-    ImGui::EndMainMenuBar();
+    ImGui::EndMenuBar();
 }
 
-void MainUi::renderDockspace()
+void MainUi::renderListenerWorkspace(NativeWindow& window,
+                                     InputState&   inputState)
 {
-    ImGui::DockSpaceOverViewport(
-        0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+    const ImGuiStyle& style         = ImGui::GetStyle();
+    const ImVec2      availableSize = ImGui::GetContentRegionAvail();
+
+    float eventLogHeight = 0.0f;
+    if ( m_showEventLog ) {
+        eventLogHeight = std::clamp(availableSize.y * 0.32f, 140.0f, 260.0f);
+        eventLogHeight =
+            std::min(eventLogHeight, std::max(0.0f, availableSize.y - 140.0f));
+    }
+
+    const float monitorHeight =
+        m_showEventLog
+            ? std::max(0.0f,
+                       availableSize.y - eventLogHeight - style.ItemSpacing.y)
+            : 0.0f;
+
+    ImGui::BeginChild("Listener Workspace", ImVec2{ 0.0f, monitorHeight });
+    renderListenerPanels(window);
+    ImGui::EndChild();
+
+    if ( !m_showEventLog ) {
+        return;
+    }
+
+    ImGui::BeginChild(
+        "Event Log", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
+    renderEventLog(inputState);
+    ImGui::EndChild();
+}
+
+void MainUi::renderListenerPanels(NativeWindow& window)
+{
+    const ImVec2 availableSize = ImGui::GetContentRegionAvail();
+    const bool   wideLayout    = availableSize.x >= 820.0f;
+
+    if ( wideLayout && ImGui::BeginTable("Listener Panels",
+                                         2,
+                                         ImGuiTableFlags_Resizable |
+                                             ImGuiTableFlags_SizingStretchProp,
+                                         availableSize) ) {
+        ImGui::TableSetupColumn(
+            "Input", ImGuiTableColumnFlags_WidthFixed, 300.0f);
+        ImGui::TableSetupColumn("Visualizer",
+                                ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableNextRow();
+
+        ImGui::TableSetColumnIndex(0);
+        ImGui::BeginChild(
+            "Input Monitor", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
+        renderInputMonitor();
+        ImGui::EndChild();
+
+        ImGui::TableSetColumnIndex(1);
+        ImGui::BeginChild(
+            "Visualizer", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
+        renderVisualizer();
+        renderSettings(window);
+        ImGui::EndChild();
+
+        ImGui::EndTable();
+        return;
+    }
+
+    const float inputHeight =
+        std::clamp(availableSize.y * 0.34f, 150.0f, 220.0f);
+    ImGui::BeginChild(
+        "Input Monitor", ImVec2{ 0.0f, inputHeight }, ImGuiChildFlags_Borders);
+    renderInputMonitor();
+    ImGui::EndChild();
+
+    ImGui::BeginChild(
+        "Visualizer", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders);
+    renderVisualizer();
+    renderSettings(window);
+    ImGui::EndChild();
 }
 
 void MainUi::renderInputMonitor()
 {
-    ImGui::Begin("Input Monitor");
+    ImGui::SeparatorText("Input Monitor");
 
     const ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("Mouse");
@@ -108,13 +204,11 @@ void MainUi::renderInputMonitor()
     if ( shownKeys == 0 ) {
         ImGui::TextDisabled("None");
     }
-
-    ImGui::End();
 }
 
 void MainUi::renderVisualizer()
 {
-    ImGui::Begin("Visualizer");
+    ImGui::SeparatorText("Visualizer");
 
     const char* row1Labels[] = { "1", "2", "3", "4", "5",
                                  "6", "7", "8", "9", "0" };
@@ -162,13 +256,11 @@ void MainUi::renderVisualizer()
     drawKey("Mouse R", ImGuiKey_MouseRight, 90.0f);
     ImGui::SameLine();
     drawKey("Mouse M", ImGuiKey_MouseMiddle, 90.0f);
-
-    ImGui::End();
 }
 
 void MainUi::renderSettings(NativeWindow& window)
 {
-    ImGui::Begin("Settings");
+    ImGui::SeparatorText("Settings");
 
     if ( ImGui::Checkbox("VSync", &m_enableVsync) ) {
         window.setVsync(m_enableVsync);
@@ -182,13 +274,11 @@ void MainUi::renderSettings(NativeWindow& window)
     ImGui::BulletText("%s", io.BackendPlatformName);
     ImGui::BulletText("%s", io.BackendRendererName);
     ImGui::BulletText("OpenGL %s", window.openGlVersion());
-
-    ImGui::End();
 }
 
 void MainUi::renderEventLog(InputState& inputState)
 {
-    ImGui::Begin("Event Log", &m_showEventLog);
+    ImGui::SeparatorText("Event Log");
 
     if ( ImGui::Button("Clear") ) {
         inputState.clearEvents();
@@ -202,8 +292,6 @@ void MainUi::renderEventLog(InputState& inputState)
     if ( ImGui::GetScrollY() >= ImGui::GetScrollMaxY() ) {
         ImGui::SetScrollHereY(1.0f);
     }
-
-    ImGui::End();
 }
 
 void MainUi::drawKey(const char* label, int key, float width)
